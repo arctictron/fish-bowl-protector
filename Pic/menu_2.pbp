@@ -1,0 +1,278 @@
+'Filename: menu_2.pbp
+'Description:
+
+Include "modedefs.bas"
+
+#CONFIG
+    Config1 HS_OSC , WDT_OFF , PWRTE_ON , LVP_OFF
+    Config2 WRT_OFF
+#ENDCONFIG
+
+'Set frequency
+DEFINE OSC 8
+OSCCON.4 = 1
+OSCCON.5 = 1
+OSCCON.6 = 1
+
+'Turning off A/D
+ansel = 0
+
+'Define Variables
+buttonpin        var PORTA.2
+SCALE            CON 255
+buttonValue	     var BYTE	     'Value for button reading
+item			 var word
+subitem			 var BYTE
+lastitem		 var BYTE
+lcd		   		 var PORTB.0	'Serial communication to LCD
+n           	 var BYTE		'Scan loop variable
+dot         	 var BYTE		'Scan loop variable
+armed		     var BYTE	
+armedtemp	     var BYTE
+armedLED		 var PORTA.0	'Led to tell if device is armed
+lastarmed	     var BYTE
+interval	     var BYTE
+intervaltemp	 var BYTE
+lastinterval	 var BYTE
+soundvar		 var BYTE
+soundtemp	     var BYTE
+lastsound	     var BYTE
+
+'Set up I/0
+TRISA = %00000000
+TRISB = %00000000
+
+'Set initial Variable values
+item = 1
+subitem = 1
+lastItem = item
+armed = 0
+armedtemp = armed
+lastarmed = armed
+interval = 30
+intervaltemp = interval
+lastinterval = interval
+soundvar = 2
+soundtemp = soundvar
+lastsound = soundvar
+
+LOW armedLED
+
+'Main Program loop
+mainloop:
+    pause 1000
+	
+	SEROUT lcd,T9600,[254,128]
+	gosub clearLCD
+	SEROUT lcd,T9600,[254,128]
+    SEROUT lcd,T9600,["   Fish  Bowl   "]
+    SEROUT lcd,T9600,[" Protector V1.0 "]
+
+    pause 2000
+
+    SEROUT lcd,T9600,["                                "]
+
+    gosub updateMenu
+
+    Do while(1)
+        POT buttonpin,SCALE,buttonvalue
+        
+        'SEROUT lcd,T9600,[254]
+        'SEROUT lcd,T9600,[128]
+        'SEROUT lcd,T9600,["                                "]
+        'SEROUT lcd,T9600,[254]
+        'SEROUT lcd,T9600,[128]
+        'SEROUT lcd,T9600,[#buttonValue,10]
+
+        if (buttonValue > 60) && (buttonValue < 80) && (item != 0) && (item != 1) && (item != 11) && (item != 21) && (item != 31) && (item != 41) Then
+    		item = item - 1
+    		subitem = subitem - 1
+    	elseif (buttonValue > 125 && buttonValue <= 150 && item != 11 && item != 4 && item != 21 && item != 31 && item != 42) Then
+    		item = item + 1
+    		subitem = subitem + 1
+    	elseif (buttonValue > 250 && buttonValue <= 255) Then
+    		if (item == 1 || item == 2 || item == 3 || item == 4 ||item == 41 || item == 42) then
+    			item = (item * 10) + 1
+    			subitem = 1
+    		Endif
+        elseif (buttonValue >= 1 && buttonValue < 5) Then
+    		if (item != 1 && item != 2 && item != 3 && item != 4) Then
+    			item = (item - subitem) / 10
+    			subitem = 1
+    		elseif (item == 0) Then
+    			item = 1
+    		endif
+    	elseif (buttonValue >30 && buttonValue < 50 && item == 1) Then
+    		gosub developerMode
+    	endif
+    	
+    	if (lastItem != item) Then
+            gosub updateMenu
+    		lastItem = item
+    	endif
+        pause 200
+    loop
+
+'UpdateLCD Loop
+updateMenu:
+	SEROUT lcd,T9600,[254]
+    SEROUT lcd,T9600,[128]
+	if (item == 1) Then
+		SEROUT lcd,T9600,["Menu:           "]
+    	SEROUT lcd,T9600,["Scan            "]
+	elseif (item == 11) then
+		SEROUT lcd,T9600,["Scan:           "]
+    	SEROUT lcd,T9600,["Scanning        "]
+		for n = 1 to 8
+			SEROUT lcd,T9600,[254,200]
+			SEROUT lcd,T9600,["     "]
+			SEROUT lcd,T9600,[254,200]
+			for dot = 1 to 5
+				SEROUT lcd,T9600,["."]
+				pause 200
+			next dot
+		next n
+	 	SEROUT lcd,T9600,[254,192]
+		SEROUT lcd,T9600,["Scan Complete   "]
+	elseif (item == 2) then
+		SEROUT lcd,T9600,["Menu:           "]
+		SEROUT lcd,T9600,["Arm Device      "]
+	elseif (item == 21) then
+		SEROUT lcd,T9600,["Arm Device:     "]
+		if (armed == 0) then
+			SEROUT lcd,T9600,["Off             "]
+		elseif (armed == 1) then
+			SEROUT lcd,T9600,["On              "]
+		endif
+		
+		pause 200
+		
+		do while (1)
+			POT buttonpin,SCALE,buttonvalue
+			
+			if (buttonValue > 60 && buttonValue < 80 && armedtemp != 1) then
+				armedtemp = armedtemp + 1
+			elseif (buttonValue > 125 && buttonValue <= 150 && armedtemp != 0) then
+				armedtemp = armedtemp - 1
+			elseif (buttonValue > 250 && buttonValue <= 255) then
+				armed = armedtemp
+				SEROUT lcd,T9600,[254,192]
+				SEROUT lcd,T9600,["Saved           "]
+				pause 1500
+				SEROUT lcd,T9600,[254,192]
+				if (armed == 0) then
+					LOW armedLED
+					SEROUT lcd,T9600,["Off             "]
+				elseif (armed == 1) then
+					HIGH armedLED
+					SEROUT lcd,T9600,["On              "]
+				endif
+			elseif (buttonValue >= 1 && buttonValue < 5) then
+				item = 2
+				gosub updateMenu
+				exit
+			endif
+			
+			if (lastarmed != armedtemp && item != 2) then
+				lastarmed = armedtemp
+				SEROUT lcd,T9600,[254,192]
+				if (armedtemp == 0) then
+					SEROUT lcd,T9600,["Off             "]
+				elseif (armedtemp == 1) then
+					SEROUT lcd,T9600,["On              "]
+				endif
+			endif
+			pause 200
+		loop
+	elseif (item == 3) then
+		SEROUT lcd,T9600,["Menu:           ","Times Fired     "]
+	elseif (item == 31) then
+		SEROUT lcd,T9600,["Times Fired:    ","0               "]
+	elseif (item == 4) then
+		SEROUT lcd,T9600,["Menu:           ","Settings        "]
+	elseif (item == 41) then
+		SEROUT lcd,T9600,["Settings:       ","Scan Interval   "]
+	elseif (item == 411) then
+		SEROUT lcd,T9600,["Scan Interval:  ","30              "]
+	elseif (item == 42) then
+		SEROUT lcd,T9600,["Settings:       ","Sound           "]
+	elseif (item == 421) then
+		SEROUT lcd,T9600,["Sound:          "]
+		if (soundvar == 0) then
+			SEROUT lcd,T9600,["Off             "]
+		elseif (soundvar == 1) then
+			SEROUT lcd,T9600,["Low             "]
+		elseif (soundvar == 2) then
+			SEROUT lcd,T9600,["Medium          "]
+		elseif (soundvar == 3) then
+			SEROUT lcd,T9600,["High            "]
+		endif
+		pause 200
+		do while (1)
+            POT buttonpin,SCALE,buttonvalue
+			
+			if (buttonValue > 60 && buttonValue < 80 && soundtemp != 3) then
+				soundtemp = soundtemp + 1
+			elseif(buttonValue > 125 && buttonValue <= 150 && soundtemp != 0)then
+				soundtemp = soundtemp - 1
+			elseif (buttonValue > 250 && buttonValue <= 255) then
+				soundvar = soundtemp
+				SEROUT lcd,T9600,[254,192]
+				SEROUT lcd,T9600,["Saved           "]
+				pause 1500
+				SEROUT lcd,T9600,[254,192]
+				if (soundvar == 0) then
+        			SEROUT lcd,T9600,["Off             "]
+        		elseif (soundvar == 1) then
+        			SEROUT lcd,T9600,["Low             "]
+        		elseif (soundvar == 2) then
+        			SEROUT lcd,T9600,["Medium          "]
+        		elseif (soundvar == 3) then
+        			SEROUT lcd,T9600,["High            "]
+        		endif
+			elseif (buttonValue >= 1 && buttonValue < 5) then
+				item = 42
+				gosub updateMenu
+				exit
+			endif
+			
+			if (lastsound != soundtemp && item != 42) then
+				lastsound = soundtemp
+				SEROUT lcd,T9600,[254,192]
+				if (soundtemp == 0) then
+        			SEROUT lcd,T9600,["Off             "]
+        		elseif (soundtemp == 1) then
+        			SEROUT lcd,T9600,["Low             "]
+        		elseif (soundtemp == 2) then
+        			SEROUT lcd,T9600,["Medium          "]
+        		elseif (soundtemp == 3) then
+        			SEROUT lcd,T9600,["High            "]
+        		endif
+			endif
+			pause 200	
+		loop
+	else
+		SEROUT lcd,T9600,["Menu:           "]
+		SEROUT lcd,T9600,["Error 404       "]
+		item = 0
+	endif
+return
+
+'Developer Mode Loop
+developerMode:
+	SEROUT lcd,T9600,[254]
+    SEROUT lcd,T9600,[128]
+	SEROUT lcd,T9600,[" Developer Mode "]
+	SEROUT lcd,T9600,["    Started     "]
+	pause 2000
+	SEROUT lcd,T9600,["                                "]
+return
+
+'ClearLCD Function
+clearLCD:
+	SEROUT lcd,T9600,[254,128]
+    SEROUT lcd,T9600,["                ","                "]
+	SEROUT lcd,T9600,[254,128]
+return
+
+end
