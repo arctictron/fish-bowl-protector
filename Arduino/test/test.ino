@@ -1,8 +1,44 @@
-// File: functions.ino
-// Description: This file contains a list of functions that are required to run the main program. Name and description of each function can be found below.
+// Defining pins
+#define trig1 6
+#define echo1 7
+#define trig2 8
+#define echo2 9
+#define trig3 10
+#define echo3 11
 
-// UltrasonicRoutine
-// Sends a ping out to determine the distance between an object and the ping sensor. Function then returns the distance.
+int reading[3];
+
+void setup() {
+	//Serial Port begin
+	Serial.begin (9600);
+	//lcd.begin(9600);
+	
+	//Set I/O
+	pinMode(trig1, OUTPUT);
+	pinMode(echo1, INPUT);
+	pinMode(trig2, OUTPUT);
+	pinMode(echo2, INPUT);
+	pinMode(trig3, OUTPUT);
+	pinMode(echo3, INPUT);
+
+	
+	// Delay for LCD
+	delay(1000); // wait for display to boot up
+}
+
+void loop() {
+
+	for(int n = 0; n < 3; n++) {
+		reading[n] = ultrasonicRoutine((trig1 + 2*n),(echo1 + 2*n),200);
+	}
+	
+
+	Serial.print(reading[1]);
+	Serial.print("    ");
+	Serial.print(reading[2]);
+	Serial.print("    ");
+	Serial.println(reading[3]);
+}		
 
 int ultrasonicRoutine(int triggerpin, int echopin, int maxdistance) {
 
@@ -39,27 +75,4 @@ int ultrasonicRoutine(int triggerpin, int echopin, int maxdistance) {
 	
 	// Return the distance
 	return distance;
-}
-
-// ValidateReadings
-// 
-
-void validateReadings() {
-	
-	for(i = 0; i < 3; i++) {
-		reading[i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
-	}
-	
-	
-	
-}
-
-// clearLCD
-// Clears the LCD
-
-void clearLCD() {
-	lcd.write(254);
-	lcd.write(128);
-	lcd.write("                ");
-	lcd.write("                ");
 }
