@@ -1,13 +1,15 @@
 Fish Bowl Protector V1.0
 ========================
 
-Need to added:
+<h2>Things to be added:</h2>
 
-Arduino -
-	- Include scan interval timeing
-	- Write update scan interval
-	- Many more things
+<h4>Arduino:</h4>
+	<ul>
+		<li>Include scan interval timeing</li>
+		<li>Write update scan interval</li>
+		<li>Many more things</li>
+	</ul>
 
-PIC -
+<h4>PIC</h4>
 	- Update times fired while on item
 	- Add scan interval routine
