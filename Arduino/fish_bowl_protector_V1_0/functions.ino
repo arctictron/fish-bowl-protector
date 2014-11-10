@@ -45,13 +45,23 @@ int ultrasonicRoutine(int triggerpin, int echopin, int maxdistance) {
 // 
 
 void validateReadings() {
+	// Declare variables
+	float  	tolfloat;
+	int		tol;
 	
-	for(i = 0; i < 3; i++) {
-		reading[i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
+	// Set tolerance
+	tolfloat = reading[0] / 10 + .5;
+	tol = int(tolfloat);
+	
+	
+	// Check to see if center data is valid
+	if(reading[2] <= (reading[0] + tol) && reading[2] >= (reading[0] - tol) && reading[1] > (reading[0] + tol)) {
+		for(i = 0; i < 3; i++) {
+			reading[i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
+		}
+		
+		validateReadings();
 	}
-	
-	
-	
 }
 
 // clearLCD
