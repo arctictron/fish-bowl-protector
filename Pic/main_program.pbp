@@ -17,10 +17,11 @@ ansel = 0
 buttonpin     	 var PORTA.2     'Button input
 armedLED      	 var PORTA.3     'LED to indicate if device is armed
 firedpin     	 var PORTB.0     'Interrupt pin for times fire
-lcd          	 var PORTB.4     'Serial communication to LCD
-armedpin      	 var PORTB.5     'Pin to tell arduino device is armed
-scanpin       	 var PORTB.6     'Pin to tell arduino to scan
-scanned       	 var PORTB.7     'Pin to tell pic that the arduino is done scanning
+lcd          	 var PORTB.3     'Serial communication to LCD
+armedpin      	 var PORTB.4     'Pin to tell arduino device is armed
+scanpin       	 var PORTB.5     'Pin to tell arduino to scan
+scanned       	 var PORTB.6     'Pin to tell pic that the arduino is done scanning
+scanint       	 var PORTB.7     'Pin to tell pic that the arduino is done scanning
  
 'Define Variables
 buttonValue	     var BYTE	     'Value for button reading
@@ -38,6 +39,8 @@ soundvar		 var BYTE
 soundtemp	     var BYTE
 lastsound	     var BYTE
 timesfired       var byte
+lastfired        var byte
+i                var byte  
 
 'Set up I/0
 TRISA = %00000000
@@ -57,6 +60,7 @@ soundvar = 2
 soundtemp = soundvar
 lastsound = soundvar
 timesfired = 0
+lastfired = timesfired
 
 LOW armedLED
 LOW armedpin
@@ -179,6 +183,22 @@ updateMenu:
 		SEROUT lcd,T9600,["Menu:",254,192,"Times Fired"]
 	elseif (item == 31) then
 		SEROUT lcd,T9600,["Times Fired:",254,192,#timesfired]
+		do while(1)
+		    if(lastfired != timesfired) then
+                lastfired = timesfired
+               	SEROUT lcd,T9600,[254,192,#timesfired]
+            endif
+            
+            POT buttonpin,255,buttonvalue  
+		    
+            if (buttonValue >= 1 && buttonValue < 5) then
+				item = 3
+				gosub updateMenu
+				exit
+			endif
+
+            pause 200  
+		loop
 	elseif (item == 4) then
 		SEROUT lcd,T9600,["Menu:",254,192,"Settings"]
 	elseif (item == 41) then
@@ -196,7 +216,18 @@ updateMenu:
 			elseif (buttonValue > 250 && buttonValue <= 255) then
 				interval = intervaltemp
 				SEROUT lcd,T9600,[254,192,"Saved"]
-				pause 1500
+				high scanint
+				do while (scanned == 0)
+				    pause 5
+				loop
+				low scanint
+				pause 5
+				for i = 1 to interval
+				    high scanint
+				    pauseus 20
+				    low scanint
+				next i
+				pause 1200
 				SEROUT lcd,T9600,[254,192,#interval,"s  "]
 			elseif (buttonValue >= 1 && buttonValue < 5) then
 				item = 41
@@ -281,7 +312,6 @@ disable
 'Fired Update Function
 updateFired:
 	timesfired = timesfired + 1
-	pause 100
 	INTCON.1 = 0
 	resume
 	
