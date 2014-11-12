@@ -30,9 +30,10 @@
 SoftwareSerial lcd(3,2); // pin 2 = TX, pin 3 = RX (unused)
 
 // Initialize variables
-int i, reading[3], reading2,armed, theta, n, intscan[21][3], scanpinState;
+int i, reading[3], reading2,armed, theta, n, intscan[21][3], scanpinState, scanintpinState;
 int armedlast = 1;
 int state = pincheck;
+long interval = 30000;
 
 void setup() {
 	//Serial Port begin
@@ -60,33 +61,33 @@ void loop() {
 		case pincheck:
 			armed = digitalRead(armedpin);
 			scanpinState = digitalRead(scanpin);
-			//scanintpinState = digitalRead(scanintpin);
+			scanintpinState = digitalRead(scanintpin);
 			
-			if(armedlast != armed && armed == LOW) {
-				clearLCD();
-				lcd.print("     System     ");
-				lcd.print("   Not  Armed   ");
-				Serial.println("System Not Armed");
-				armedlast = armed;
-			} else if(armed == HIGH) {
-				clearLCD();
-				lcd.print("     System     ");
-				lcd.print("     Armed      ");
+			if(armed == HIGH && scanpinState == LOW && scanintpinState == LOW) {
 				Serial.println("System Armed");
 				
 				// Check to see if initial scan array is set
 				state = scan;
-				armedlast = 1;
-				delay(1000);
-				clearLCD();
 			} else if (scanpinState == HIGH) {
 				state = initialscan; 
-			} //else if (scanintpinState == HIGH) {
-			//}
+			} else if (scanintpinState == HIGH) {
+				state = updateinterval;
+			}
 			
 			break;
 			
 		case updateinterval:
+			digitalWrite(scannedpin, HIGH);
+			while (digitalRead(scanintpin) == HIGH) {
+			}
+			interval = pulseIn(scanintpin, HIGH);
+			digitalWrite(scannedpin, LOW);
+			
+			interval = (interval - 100) / 100 * 1000;
+			
+			Serial.print("Interval: ");
+			Serial.println(interval);
+			state = pincheck;
 			break;
 			
 		case initialscan:
@@ -134,36 +135,43 @@ void loop() {
 			break;
 			
 		case scan:
-			theta = 10;
-		
-			while(digitalRead(armedpin) == HIGH && (digitalRead(scanpin) == HIGH || digitalRead(scanintpin) == HIGH)) {
-				lcd.write(254);
-				lcd.write(128);
-				lcd.print("     ");
-				lcd.write(254);
-				lcd.write(128);
-				reading[1] = ultrasonicRoutine(trig1,echo1,200);
-				lcd.print(reading[1]);
-				Serial.print(reading[1]);
-				Serial.print("    ");
-				lcd.write(254);
-				lcd.write(133);
-				lcd.print("     ");
-				lcd.write(254);
-				lcd.write(133);
-				reading[2] = ultrasonicRoutine(trig2,echo2,200);
-				lcd.print(reading[2]);
-				Serial.print(reading[2]);
-				Serial.print("    ");
-				lcd.write(254);
-				lcd.write(138);
-				lcd.print("     ");
-				lcd.write(254);
-				lcd.write(138);
-				reading[3] = ultrasonicRoutine(trig3,echo3,200);
-				lcd.print(reading[3]);
-				Serial.println(reading[3]);
+			
+			
+			while(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW) {
+				Serial.println("Starting new scan interval.");
 				
+			
+				theta = 10;
+				
+				for(n = 0; n < 21; n++) {
+					Serial.print("Theta: ");
+					Serial.println(theta);
+				
+					for(i = 0; i < 3; i++) {
+						reading[i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
+					}
+					
+					Serial.print("    L: ");
+					Serial.print(reading[0]);
+					Serial.print("    C: ");
+					Serial.print(reading[1]);
+					Serial.print("    R: ");
+					Serial.println(reading[2]);
+					
+					// Check if armed scan pin is high
+					if(digitalRead(armedpin) == LOW || digitalRead(scanpin) == HIGH) {
+						break;
+					}
+					
+					// Increase theta
+					theta = theta + 8;
+				}
+			
+				// Wait for next scan interval
+				if(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW) {
+					Serial.println("Begin delay interval.");
+					delay(interval);
+				}
 			}
 			
 			// Update state if while statement is broken and state does not equal track.
