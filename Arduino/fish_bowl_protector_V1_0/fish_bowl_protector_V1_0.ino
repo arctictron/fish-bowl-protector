@@ -1,7 +1,7 @@
 // File: fish_bowl_protector_V1_0.ino
 // Description: Main program flow for the arduino.
 
-// Define pins
+// Mega Pinout
 #define trig1 			4
 #define echo1 			5
 #define trig2 			6
@@ -13,7 +13,21 @@
 #define armedpin 		A2
 #define scanpin 		A3
 #define scannedpin	 	A4
-#define scanintpin 		A5
+#define scanintpin 		
+
+// Micro pinout
+/*#define trig1 			4
+#define echo1 			5
+#define trig2 			6
+#define echo2 			7
+#define trig3 			8
+#define echo3			9
+#define servo			10
+#define firedpin 		A1
+#define armedpin 		A2
+#define scanpin 		A3
+#define scannedpin	 	A4
+#define scanintpin 		A5*/
 
 // Define states
 #define pincheck		0
@@ -24,14 +38,15 @@
 #define fire 			5
 
 // Include libraries
-#include <SoftwareSerial.h>
+#include <Servo.h>
 
-// Attach the serial display's RX line to digital pin 2
-SoftwareSerial lcd(3,2); // pin 2 = TX, pin 3 = RX (unused)
+// Attach 
+Servo turret;
+
 
 // Initialize variables
 int i, reading[3], reading2,armed, theta, n, intscan[21][3], scanpinState, scanintpinState;
-int armedlast = 1;
+int lastarmed = 0;
 int state = pincheck;
 long interval = 30000;
 
@@ -52,6 +67,9 @@ void setup() {
 	pinMode(scanpin, INPUT);
 	pinMode(scannedpin, OUTPUT);
 	pinMode(scanintpin, INPUT);
+	
+	// Set servo
+	turret.attach(10);
 }
 
 void loop() {
@@ -67,7 +85,14 @@ void loop() {
 				Serial.println("System Armed");
 				
 				// Check to see if initial scan array is set
-				state = scan;
+				if(intscan[0][0] == 0 && intscan[0][1] == 0 && intscan[0][2] == 0) {
+					state = initialscan;
+				} else {
+					state = scan;
+				}
+			} else if (armed == LOW && lastarmed != 1) {
+				Serial.println("System not armed.");
+				lastarmed = 1;
 			} else if (scanpinState == HIGH) {
 				state = initialscan; 
 			} else if (scanintpinState == HIGH) {
@@ -87,10 +112,16 @@ void loop() {
 			
 			Serial.print("Interval: ");
 			Serial.println(interval);
+			
+			// Return to pincheck
 			state = pincheck;
+			
 			break;
 			
 		case initialscan:
+			Serial.println("Starting base scan.");
+			
+			
 			theta = 10;
 		
 			for(n = 0; n < 21; n++) {
@@ -140,7 +171,7 @@ void loop() {
 			while(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW) {
 				Serial.println("Starting new scan interval.");
 				
-			
+				
 				theta = 10;
 				
 				for(n = 0; n < 21; n++) {
@@ -176,14 +207,16 @@ void loop() {
 			
 			// Update state if while statement is broken and state does not equal track.
 			if (state != track) {
-				if (digitalRead(armedpin) == HIGH && (digitalRead(scanpin) == LOW || digitalRead(scanintpin) == LOW)) {
+				if (digitalRead(armedpin) == LOW && (digitalRead(scanpin) == LOW || digitalRead(scanintpin) == LOW)) {
 					state = pincheck;
+					lastarmed = 0;
 				} else if(digitalRead(scanpin) == HIGH) {
 					state = initialscan;
 				} else if (digitalRead(scanintpin) == HIGH) {
 					state = updateinterval;
 				} else {
 					state = pincheck;
+					Serial.println("Error in case scan.");
 				}
 			}
 		
@@ -193,15 +226,21 @@ void loop() {
 			break;
 			
 		case fire:
-			clearLCD();
-			lcd.print("Fired!");
-			digitalWrite(firedpin, HIGH);
-			delay(100);
-			digitalWrite(firedpin, LOW);
-			delay(2000);
-			state = scan;
-			break;
+			// Shoot stream of water
 			
+			// Update fire count
+			digitalWrite(firedpin, HIGH);
+			delay(1);
+			digitalWrite(firedpin, LOW);
+			
+			// Make fired sound
+			
+			// Return back to scanning
+			state = scan;
+			delay(5000);
+			
+			break;
+		
 	}
 	
 }
