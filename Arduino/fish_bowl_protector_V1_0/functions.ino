@@ -64,12 +64,8 @@ void validateReadings() {
 	}
 }
 
-// clearLCD
-// Clears the LCD
+// soundTest
+// Outputs a simple tone to indicate loudness
 
-void clearLCD() {
-	lcd.write(254);
-	lcd.write(128);
-	lcd.write("                ");
-	lcd.write("                ");
+void soundTest() {
 }

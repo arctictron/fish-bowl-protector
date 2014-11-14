@@ -2,34 +2,21 @@
 // Description: Main program flow for the arduino.
 
 // Mega Pinout
-#define trig1 			4
-#define echo1 			5
-#define trig2 			6
-#define echo2 			7
-#define trig3 			8
-#define echo3			9
-#define servo			10
-#define firedpin 		A1
-#define armedpin 		A2
-#define scanpin 		A3
-#define scannedpin	 	A4
-#define scanintpin 		
+#define servo
+#define	speaker			
+#define trig1 			8
+#define echo1 			9
+#define trig2 			10
+#define echo2 			11
+#define trig3 			12
+#define echo3			13
+#define firedpin 		22
+#define armedpin 		23
+#define scanpin 		24
+#define scannedpin	 	25
+#define scanintpin 		26
 
-// Micro pinout
-/*#define trig1 			4
-#define echo1 			5
-#define trig2 			6
-#define echo2 			7
-#define trig3 			8
-#define echo3			9
-#define servo			10
-#define firedpin 		A1
-#define armedpin 		A2
-#define scanpin 		A3
-#define scannedpin	 	A4
-#define scanintpin 		A5*/
-
-// Define states
+// Define Case States
 #define pincheck		0
 #define updateinterval	1
 #define initialscan 	2
@@ -37,23 +24,24 @@
 #define track 			4
 #define fire 			5
 
+// Define other constants
+#define debug			1
+#define dtheta 			8
+#define maxrange		200
+
 // Include libraries
 #include <Servo.h>
 
-// Attach 
-Servo turret;
-
-
 // Initialize variables
-int i, reading[3], reading2,armed, theta, n, intscan[21][3], scanpinState, scanintpinState;
+int i, reading[3], reading2,armed, theta, n, baseScan[21][3], scanpinState, scanintpinState, time, checkreading;
 int lastarmed = 0;
 int state = pincheck;
 long interval = 30000;
+Servo turret;
 
 void setup() {
 	//Serial Port begin
 	Serial.begin (9600);
-	lcd.begin(9600);
 	
 	//Set I/O
 	pinMode(trig1, OUTPUT);
@@ -69,7 +57,9 @@ void setup() {
 	pinMode(scanintpin, INPUT);
 	
 	// Set servo
-	turret.attach(10);
+	turret.attach(5);
+	turret.write(0);
+	delay(5);
 }
 
 void loop() {
@@ -85,7 +75,7 @@ void loop() {
 				Serial.println("System Armed");
 				
 				// Check to see if initial scan array is set
-				if(intscan[0][0] == 0 && intscan[0][1] == 0 && intscan[0][2] == 0) {
+				if(baseScan[0][0] == 0 && baseScan[0][1] == 0 && baseScan[0][2] == 0) {
 					state = initialscan;
 				} else {
 					state = scan;
@@ -103,15 +93,21 @@ void loop() {
 			
 		case updateinterval:
 			digitalWrite(scannedpin, HIGH);
+			
+			// Wait for scanintpin to go low
 			while (digitalRead(scanintpin) == HIGH) {
 			}
+			
 			interval = pulseIn(scanintpin, HIGH);
 			digitalWrite(scannedpin, LOW);
 			
+			// Calculate interval
 			interval = (interval - 100) / 100 * 1000;
 			
-			Serial.print("Interval: ");
-			Serial.println(interval);
+			if(debug) {
+				Serial.print("Interval: ");
+				Serial.println(interval);
+			}
 			
 			// Return to pincheck
 			state = pincheck;
@@ -121,8 +117,11 @@ void loop() {
 		case initialscan:
 			Serial.println("Starting base scan.");
 			
-			
 			theta = 10;
+			
+			turret.write(theta);
+			
+			delay(5);
 		
 			for(n = 0; n < 21; n++) {
 				// Run ultrasonicRoutine for each ping sensor
@@ -133,9 +132,9 @@ void loop() {
 				// Validate the center ultrasonic data
 				validateReadings();
 				
-				// Update intscan array
+				// Update baseScan array
 				for(i = 0; i < 3; i++) {
-					intscan[n][i] = reading[i];
+					baseScan[n][i] = reading[i];
 				}
 				
 				// Print Values and theta
@@ -144,13 +143,20 @@ void loop() {
 				Serial.print("    L: ");
 				Serial.print(reading[0]);
 				Serial.print("    C: ");
-				Serial.print(reading[1]);
+				Serial.print(reading[2]);
 				Serial.print("    R: ");
-				Serial.println(reading[2]);
+				Serial.println(reading[1]);
 				
 				// Increase position
-				theta = theta + 8;
+				if(theta <= 170) {
+					theta = theta + dtheta;
+					turret.write(theta);
+					delay(5);
+				}
+				
 			}
+			
+			turret.write(10);
 			
 			// Tell pic microcontrollor scan is complete
 			Serial.println("Scan Complete");
@@ -171,8 +177,11 @@ void loop() {
 			while(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW) {
 				Serial.println("Starting new scan interval.");
 				
-				
 				theta = 10;
+				
+				turret.write(theta);
+				
+				delay(100);
 				
 				for(n = 0; n < 21; n++) {
 					Serial.print("Theta: ");
@@ -182,26 +191,58 @@ void loop() {
 						reading[i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
 					}
 					
-					Serial.print("    L: ");
-					Serial.print(reading[0]);
-					Serial.print("    C: ");
-					Serial.print(reading[1]);
-					Serial.print("    R: ");
-					Serial.println(reading[2]);
+					if(debug) {
+						Serial.print("Theta: ");
+						Serial.println(theta);
+						Serial.print("\t");
+						Serial.print("L: ");
+						Serial.print(reading[0]);
+						Serial.print("\t");
+						Serial.print("C: ");
+						Serial.print(reading[2]);
+						Serial.print("\t");
+						Serial.print("R: ");
+						Serial.println(reading[1]);
+					}
 					
 					// Check if armed scan pin is high
 					if(digitalRead(armedpin) == LOW || digitalRead(scanpin) == HIGH) {
 						break;
+					} else {
+						// Check to see if something moved
+						for(i = 0; i < 3; i++) {
+							if(reading[i] <= (baseScan[n][i] - 2)) {
+								checkreading = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),maxrange);
+								
+								if(checkreading <= (baseScan[n][i] - 2)) {
+									state = track;
+									break;
+								}
+							}
+						}
+						
+						if(theta <= 170 && state != track) {
+							theta = theta + dtheta;
+							turret.write(theta);
+							delay(10);
+						}
 					}
-					
-					// Increase theta
-					theta = theta + 8;
+				}
+				
+				if(state != track) {
+					turret.write(10);
 				}
 			
 				// Wait for next scan interval
-				if(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW) {
-					Serial.println("Begin delay interval.");
-					delay(interval);
+				if(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW && state != track) {
+					if(debug) {
+						Serial.println("Begin delay interval.");
+					}
+					
+					while(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW && time <= interval) {
+						delay(5);
+						time = time + 5;
+					}
 				}
 			}
 			
@@ -223,17 +264,24 @@ void loop() {
 			break;
 			
 		case track:
+			
+			if(digitalRead(armedpin) == HIGH) {
+				if(debug) {
+					Serial.print("Begin tracking.");
+				}
+				
+				
+			}
 			break;
 			
 		case fire:
-			// Shoot stream of water
-			
 			// Update fire count
 			digitalWrite(firedpin, HIGH);
 			delay(1);
 			digitalWrite(firedpin, LOW);
 			
-			// Make fired sound
+			// Shoot stream of water
+			
 			
 			// Return back to scanning
 			state = scan;

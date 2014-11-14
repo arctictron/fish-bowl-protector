@@ -56,7 +56,7 @@ lastarmed = armed
 interval = 30
 intervaltemp = interval
 lastinterval = interval
-soundvar = 2
+soundvar = 1
 soundtemp = soundvar
 lastsound = soundvar
 timesfired = 0
@@ -75,7 +75,7 @@ INTCON = $90
 mainloop:
     pause 1000
 	gosub clearLCD
-    SEROUT lcd,T9600,[254,131,"Fish  Bowl",254,193,"Protector V1.0"]
+    SEROUT lcd,T9600,[254,131,"Fish  Bowl",254,193,"Protector V1.0",254,131,"Fish  Bowl",254,193,"Protector V1.0"]
     pause 2000
     gosub clearLCD
     gosub updateMenu
@@ -247,33 +247,25 @@ updateMenu:
 		if (soundvar == 0) then
 			SEROUT lcd,T9600,["Off"]
 		elseif (soundvar == 1) then
-			SEROUT lcd,T9600,["Low   "]
-		elseif (soundvar == 2) then
-			SEROUT lcd,T9600,["Medium"]
-		elseif (soundvar == 3) then
-			SEROUT lcd,T9600,["High  "]
+			SEROUT lcd,T9600,["On "]
 		endif
 		pause 200
 		do while (1)
             POT buttonpin,255,buttonvalue
-			if (buttonValue > 60 && buttonValue < 80 && soundtemp != 3) then
+			if (buttonValue > 60 && buttonValue < 80 && soundtemp != 1) then
 				soundtemp = soundtemp + 1
-			elseif(buttonValue > 125 && buttonValue <= 150 && soundtemp != 0)then
+			elseif (buttonValue > 125 && buttonValue <= 150 && soundtemp != 0)then
 				soundtemp = soundtemp - 1
 			elseif (buttonValue > 250 && buttonValue <= 255) then
 				soundvar = soundtemp
 				SEROUT lcd,T9600,[254,192]
-				SEROUT lcd,T9600,["Saved "]
+				SEROUT lcd,T9600,["Saved"]
 				pause 1500
 				SEROUT lcd,T9600,[254,192]
 				if (soundvar == 0) then
-        			SEROUT lcd,T9600,["Off  "]
+        			SEROUT lcd,T9600,["Off "]
         		elseif (soundvar == 1) then
-        			SEROUT lcd,T9600,["Low  "]
-        		elseif (soundvar == 2) then
-        			SEROUT lcd,T9600,["Medium"]
-        		elseif (soundvar == 3) then
-        			SEROUT lcd,T9600,["High "]
+        			SEROUT lcd,T9600,["On  "]
         		endif
 			elseif (buttonValue >= 1 && buttonValue < 5) then
 				item = 42
@@ -286,11 +278,7 @@ updateMenu:
 				if (soundtemp == 0) then
         			SEROUT lcd,T9600,["Off"]
         		elseif (soundtemp == 1) then
-        			SEROUT lcd,T9600,["Low   "]
-        		elseif (soundtemp == 2) then
-        			SEROUT lcd,T9600,["Medium"]
-        		elseif (soundtemp == 3) then
-        			SEROUT lcd,T9600,["High  "]
+        			SEROUT lcd,T9600,["On "]
         		endif
 			endif
 			pause 200	
@@ -312,6 +300,8 @@ disable
 'Fired Update Function
 updateFired:
 	timesfired = timesfired + 1
+	if (soundvar) then
+	endif
 	INTCON.1 = 0
 	resume
 	

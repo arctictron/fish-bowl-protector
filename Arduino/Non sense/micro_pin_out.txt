@@ -1,0 +1,13 @@
+// Micro pinout
+/*#define trig1 			4
+#define echo1 			5
+#define trig2 			6
+#define echo2 			7
+#define trig3 			8
+#define echo3			9
+#define servo			10
+#define firedpin 		A1
+#define armedpin 		A2
+#define scanpin 		A3
+#define scannedpin	 	A4
+#define scanintpin 		A5*/
