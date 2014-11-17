@@ -1,4 +1,4 @@
-'Filename: menu_2.pbp
+'Filename: main_program.pbp
 'Description:
 
 Include "modedefs.bas"
@@ -77,8 +77,10 @@ INTCON = $90
 mainloop:
     pause 1000
 	gosub clearLCD
-    SEROUT lcd,T9600,[254,131,"Fish  Bowl",254,193,"Protector V1.0",254,131,"Fish  Bowl",254,193,"Protector V1.0"]
-    pause 2000
+    SEROUT lcd,T9600,[254,131,"Fish  Bowl",254,193,"Protector V1.0"]
+    gosub clearLCD
+	SEROUT lcd,T9600,[254,131,"Fish  Bowl",254,193,"Protector V1.0"]
+	pause 2000
     gosub clearLCD
     gosub updateMenu
     Do while(1)
@@ -188,7 +190,7 @@ updateMenu:
 		do while(1)
 		    if(lastfired != timesfired) then
                 lastfired = timesfired
-               	SEROUT lcd,T9600,[254,192,#timesfired]
+               	SEROUT lcd,T9600,[254,192,"  ",254,192,#timesfired]
             endif
             
             POT buttonpin,255,buttonvalue  
@@ -302,11 +304,16 @@ disable
 
 'Fired Update Function
 updateFired:
-	timesfired = timesfired + 1
+	if (timesfired < 99) then
+		timesfired = timesfired + 1
+	else
+		timesfired = 1
+	endif
 	if (soundvar) then
 		for dot = 1 to 127 step 2
 			sound soundpin,[dot,1]
 		next dot
+		sound soundpin,[5,2,110,1,40,2,100,1,30,1,25,1]
 	endif
 	INTCON.1 = 0
 	resume
