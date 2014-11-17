@@ -226,11 +226,9 @@ updateMenu:
 				loop
 				low scanint
 				pause 5
-				for i = 1 to interval
-				    high scanint
-				    pauseus 20
-				    low scanint
-				next i
+				high scanint
+				pauseus interval * 100
+				low scanint
 				pause 1200
 				SEROUT lcd,T9600,[254,192,#interval,"s  "]
 			elseif (buttonValue >= 1 && buttonValue < 5) then
@@ -313,7 +311,7 @@ updateFired:
 		for dot = 1 to 127 step 2
 			sound soundpin,[dot,1]
 		next dot
-		sound soundpin,[5,2,110,1,40,2,100,1,30,1,25,1]
+		sound soundpin,[5,2,110,1,40,3,100,2,30,3,25,2]
 	endif
 	INTCON.1 = 0
 	resume
