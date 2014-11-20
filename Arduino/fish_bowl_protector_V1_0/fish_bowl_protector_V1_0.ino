@@ -2,8 +2,8 @@
 // Description: Main program flow for the arduino.
 
 // Mega Pinout
-#define servo
-#define	speaker			
+#define servo			5
+#define	speaker			3
 #define trig1 			8
 #define echo1 			9
 #define trig2 			10
@@ -15,6 +15,7 @@
 #define scanpin 		24
 #define scannedpin	 	25
 #define scanintpin 		26
+#define pump			50
 
 // Define Case States
 #define pincheck		0
@@ -33,11 +34,19 @@
 #include <Servo.h>
 
 // Initialize variables
-int i, reading[3], reading2,armed, theta, n, baseScan[21][3], scanpinState, scanintpinState, time, checkreading;
+int i, reading[3], reading2,armed, theta, n, baseScan[21][3], scanpinState, scanintpinState, time, checkreading, gotoTracking[3];
 int lastarmed = 0;
 int state = pincheck;
 long interval = 30000;
+int rightLed = 53 ; // Right LED
+int leftLed = 52; // NOt used yet 
 Servo turret;
+boolean goingRight = true;
+int dTheta = 10;
+int currentPosition = 90;
+boolean tracking = true;
+
+boolean locked = true;
 
 void setup() {
 	//Serial Port begin
@@ -55,6 +64,7 @@ void setup() {
 	pinMode(scanpin, INPUT);
 	pinMode(scannedpin, OUTPUT);
 	pinMode(scanintpin, INPUT);
+	pinMode(pump, OUTPUT);
 	
 	// Set servo
 	turret.attach(5);
@@ -72,7 +82,9 @@ void loop() {
 			scanintpinState = digitalRead(scanintpin);
 			
 			if(armed == HIGH && scanpinState == LOW && scanintpinState == LOW) {
-				Serial.println("System Armed");
+				if(debug) {
+					Serial.println("System Armed");
+				}
 				
 				// Check to see if initial scan array is set
 				if(baseScan[0][0] == 0 && baseScan[0][1] == 0 && baseScan[0][2] == 0) {
@@ -81,7 +93,9 @@ void loop() {
 					state = scan;
 				}
 			} else if (armed == LOW && lastarmed != 1) {
-				Serial.println("System not armed.");
+				if(debug) {
+					Serial.println("System not armed.");
+				}
 				lastarmed = 1;
 			} else if (scanpinState == HIGH) {
 				state = initialscan; 
@@ -109,13 +123,17 @@ void loop() {
 				Serial.println(interval);
 			}
 			
+			delay(200);
+			
 			// Return to pincheck
 			state = pincheck;
 			
 			break;
 			
 		case initialscan:
-			Serial.println("Starting base scan.");
+			if(debug) {
+				Serial.println("Starting base scan.");
+			}
 			
 			theta = 10;
 			
@@ -124,28 +142,26 @@ void loop() {
 			delay(5);
 		
 			for(n = 0; n < 21; n++) {
-				// Run ultrasonicRoutine for each ping sensor
+				// Run ultrasonicRoutine for each ping sensor and set baseScan array
 				for(i = 0; i < 3; i++) {
-					reading[i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
-				}
-				
-				// Validate the center ultrasonic data
-				validateReadings();
-				
-				// Update baseScan array
-				for(i = 0; i < 3; i++) {
-					baseScan[n][i] = reading[i];
+					baseScan[n][i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
 				}
 				
 				// Print Values and theta
-				Serial.print("Theta: ");
-				Serial.print(theta);
-				Serial.print("    L: ");
-				Serial.print(reading[0]);
-				Serial.print("    C: ");
-				Serial.print(reading[2]);
-				Serial.print("    R: ");
-				Serial.println(reading[1]);
+				if(debug) {
+					Serial.print("Theta ");
+					Serial.print(theta);
+					Serial.println(":");
+					Serial.print("\t");
+					Serial.print("L: ");
+					Serial.print(baseScan[n][0]);
+					Serial.print("\t");
+					Serial.print("C: ");
+					Serial.print(baseScan[n][2]);
+					Serial.print("\t");
+					Serial.print("R: ");
+					Serial.println(baseScan[n][1]);
+				}
 				
 				// Increase position
 				if(theta <= 170) {
@@ -159,12 +175,19 @@ void loop() {
 			turret.write(10);
 			
 			// Tell pic microcontrollor scan is complete
-			Serial.println("Scan Complete");
-			digitalWrite(scannedpin, HIGH);
-			while (digitalRead(scanpin) == HIGH) {
-				delay(50);
+			if(debug) {
+				Serial.println("Scan Complete");
 			}
+			
+			digitalWrite(scannedpin, HIGH);
+			
+			while (digitalRead(scanpin) == HIGH) {
+				delay(5);
+			}
+			
 			digitalWrite(scannedpin, LOW);
+			
+			delay(1000);
 			
 			// Update state
 			state = pincheck;
@@ -173,19 +196,18 @@ void loop() {
 			
 		case scan:
 			
-			
-			while(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW) {
-				Serial.println("Starting new scan interval.");
+			while(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW && state != track) {
+				if(debug) {
+					Serial.println("Starting new scan interval.");
+				}
 				
 				theta = 10;
 				
 				turret.write(theta);
 				
-				delay(100);
+				delay(5);
 				
 				for(n = 0; n < 21; n++) {
-					Serial.print("Theta: ");
-					Serial.println(theta);
 				
 					for(i = 0; i < 3; i++) {
 						reading[i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
@@ -203,6 +225,15 @@ void loop() {
 						Serial.print("\t");
 						Serial.print("R: ");
 						Serial.println(reading[1]);
+						Serial.print("\t");
+						Serial.print("L: ");
+						Serial.print(baseScan[n][0]);
+						Serial.print("\t");
+						Serial.print("C: ");
+						Serial.print(baseScan[n][2]);
+						Serial.print("\t");
+						Serial.print("R: ");
+						Serial.println(baseScan[n][1]);
 					}
 					
 					// Check if armed scan pin is high
@@ -211,14 +242,30 @@ void loop() {
 					} else {
 						// Check to see if something moved
 						for(i = 0; i < 3; i++) {
-							if(reading[i] <= (baseScan[n][i] - 2)) {
+							if(reading[i] <= (baseScan[n][i] - 10)) {
+								Serial.println(reading[i]);
+								Serial.println(baseScan[n][i] - 5);
 								checkreading = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),maxrange);
 								
 								if(checkreading <= (baseScan[n][i] - 2)) {
-									state = track;
-									break;
+									gotoTracking[i] = 1;
+								} else {
+									gotoTracking[i] = 0;
 								}
+							} else {
+								Serial.println(reading[1]);
+								Serial.println(baseScan[n][i] - 5);
+								gotoTracking[i] = 0;
 							}
+						}
+						
+						if(gotoTracking[0] == 1 || gotoTracking [1] == 1|| gotoTracking[2] == 1) {
+							state = track;
+							
+							if(debug) {
+								Serial.println("Going to track.");
+							}
+							break;
 						}
 						
 						if(theta <= 170 && state != track) {
@@ -238,6 +285,8 @@ void loop() {
 					if(debug) {
 						Serial.println("Begin delay interval.");
 					}
+					
+					time = 0;
 					
 					while(digitalRead(armedpin) == HIGH && digitalRead(scanpin) == LOW && digitalRead(scanintpin) == LOW && time <= interval) {
 						delay(5);
@@ -270,7 +319,84 @@ void loop() {
 					Serial.print("Begin tracking.");
 				}
 				
-				
+				while(state != fire) {
+					int difference, distance1, distance2, distance3, difference2;
+					distance1 = ultrasonicRoutineTrack(trig1,echo1,200);
+					distance2 = ultrasonicRoutineTrack(trig2,echo2,200);  
+					distance3 = ultrasonicRoutineTrack(trig3,echo3,200);  
+					  Serial.print("ping 1");    
+					  
+					  Serial.print("\t");  
+					  Serial.print(distance1);
+				 
+					  Serial.print("\t");     
+					  Serial.print("ping 2");    
+					 
+					  Serial.print("\t");  
+					  Serial.print(distance2);
+					  difference = distance1 - distance2;
+					  
+					  Serial.print("\t");     
+					  Serial.print("ping 3");    
+					  Serial.print("\t");  
+					  Serial.print(distance3);
+					  int difference23;
+					  difference23 = distance2 - distance3;
+
+					  int difference31;
+					  difference31 = distance1 - distance3;
+
+					 float tolerance;
+						tolerance = (float(distance1) / 10.0) + .5;
+						int tol1;
+						tol1 = int(tolerance);
+						//Serial.print(tol1);
+					 float tolerance2;
+						tolerance2 = (float(distance2) / 10.0) + .5;
+							int tol2;
+								tol2 = int (tolerance2);
+					  float tolerance3;
+						tolerance3 = (float(distance3) / 20.0) + .5;
+							int tol3;
+								tol3 = int (tolerance3);
+					float closetolerance;
+						closetolerance = (float(distance1) / 7.0) + .5;
+						int closetol1;
+						closetol1 = int(closetolerance);
+						//Serial.print(tol1);
+					 float closetolerance2;
+						closetolerance2 = (float(distance2) / 7.0) + .5;
+							int closetol2;
+								closetol2 = int (closetolerance2);
+					  float closetolerance3;
+						closetolerance3 = (float(distance3) / 15.0) + .5;
+							int closetol3;
+								closetol3 = int (closetolerance3);
+				   
+					if(distance1 < distance2 && distance1 < distance2 && theta > 10) { 
+						theta = theta - dTheta ;
+						turret.write(theta);
+						delay(10);
+					} else if(distance1 > distance2 && distance1 > distance2 && theta < 170) {
+						theta = theta + dTheta;
+						turret.write(theta);
+						delay(10);
+					}
+				  
+					if(distance3 < distance1 && distance3 < distance2 && distance3 < distance1) {
+								distance3 = ultrasonicRoutine(trig3,echo3,200);
+									if (distance3 < distance1 && distance3 < distance1 && distance3 < distance2 && distance3 < distance1) {
+									  
+							// Change state to fire
+							state = fire;
+							delay(500); 
+						}
+					}
+					  Serial.print("\t");
+					  Serial.print("theta");
+					  Serial.print("\t");
+					  Serial.println(theta); 
+				}
 			}
 			break;
 			
@@ -281,11 +407,18 @@ void loop() {
 			digitalWrite(firedpin, LOW);
 			
 			// Shoot stream of water
-			
+			digitalWrite(pump, HIGH);
+			delay(200);
+			digitalWrite(pump, LOW);
 			
 			// Return back to scanning
+			time = 0;
+			
+			while(time <= 5000) {
+				delay(5);
+				time = time + 5;
+			}
 			state = scan;
-			delay(5000);
 			
 			break;
 		
