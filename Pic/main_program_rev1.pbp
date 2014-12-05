@@ -44,7 +44,7 @@ i                var byte
 
 'Set up I/0
 TRISA = %00000000
-TRISB = %10000001
+TRISB = %11000001
 
 'Set initial Variable values
 item = 1
@@ -92,21 +92,21 @@ mainloop:
         'SEROUT lcd,T9600,[#buttonValue,10]
 
         if (buttonValue > 60 && buttonValue < 80) then
-			if (item != 0 && item != 1 && item != 21 && item != 31) then
+			if (item != 0 && item != 1 && item != 21) then
 				item = item - 1
 			else
 				item = 5
 			endif
     	elseif (buttonValue > 125 && buttonValue <= 150) then
-			if (item != 5 && item != 21 && item != 31) then
+			if (item != 5 && item != 21) then
 				item = item + 1
 			else
 				item = 1
 			endif
-    	elseif (buttonValue > 250 && buttonValue <= 255) Then
+    	elseif (buttonValue > 250 && buttonValue <= 255 && item != 21) Then
     		item = (item * 10) + 1
         elseif (buttonValue >= 1 && buttonValue < 5) Then
-    		if (item != 1 && item != 2 && item != 3 && item != 4) Then
+    		if (item != 1 && item != 2 && item != 3 && item != 4 && item != 5) Then
     			item = (item - 1) / 10
     		elseif (item == 0) Then
     			item = 1
@@ -153,7 +153,7 @@ updateMenu:
 					SEROUT lcd,T9600,["On   "]
 				endif
 			elseif (buttonValue >= 1 && buttonValue < 5) then
-				item = 2
+				item = 1
 				gosub updateMenu
 				exit
 			endif
@@ -212,7 +212,7 @@ updateMenu:
             POT buttonpin,255,buttonvalue
 			if (buttonValue > 60 && buttonValue < 80 && intervaltemp != 60) then
 				intervaltemp = intervaltemp + 5
-			elseif(buttonValue > 125 && buttonValue <= 150 && intervaltemp != 30)then
+			elseif (buttonValue > 125 && buttonValue <= 150 && intervaltemp != 30)then
 				intervaltemp = intervaltemp - 5
 			elseif (buttonValue > 250 && buttonValue <= 255) then
 				interval = intervaltemp
@@ -233,7 +233,7 @@ updateMenu:
 				gosub updateMenu
 				exit
 			endif
-			if (lastinterval != intervaltemp && item != 41) then
+			if (lastinterval != intervaltemp && item != 4) then
 				lastinterval = intervaltemp
 				SEROUT lcd,T9600,[254,192,#intervaltemp]
 			endif
@@ -267,11 +267,11 @@ updateMenu:
         			SEROUT lcd,T9600,["On  "]
         		endif
 			elseif (buttonValue >= 1 && buttonValue < 5) then
-				item = 42
+				item = 5
 				gosub updateMenu
 				exit
 			endif
-			if (lastsound != soundtemp && item != 42) then
+			if (lastsound != soundtemp && item != 5) then
 				lastsound = soundtemp
 				SEROUT lcd,T9600,[254,192]
 				if (soundtemp == 0) then
