@@ -10,7 +10,7 @@
 #define echo2 			11
 #define trig3 			12
 #define echo3			13
-#define firedpin 		22
+#define firedpin 		27
 #define armedpin 		23
 #define scanpin 		24
 #define scannedpin	 	25
@@ -244,17 +244,17 @@ void loop() {
 						for(i = 0; i < 3; i++) {
 							if(reading[i] <= (baseScan[n][i] - 10)) {
 								Serial.println(reading[i]);
-								Serial.println(baseScan[n][i] - 5);
+								Serial.println(baseScan[n][i] - 10);
 								checkreading = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),maxrange);
 								
-								if(checkreading <= (baseScan[n][i] - 2)) {
+								if(checkreading <= (baseScan[n][i] - 10)) {
 									gotoTracking[i] = 1;
 								} else {
 									gotoTracking[i] = 0;
 								}
 							} else {
 								Serial.println(reading[1]);
-								Serial.println(baseScan[n][i] - 5);
+								Serial.println(baseScan[n][i] - 10);
 								gotoTracking[i] = 0;
 							}
 						}
@@ -319,91 +319,81 @@ void loop() {
 					Serial.print("Begin tracking.");
 				}
 				
-				while(state != fire) {
-					int difference, distance1, distance2, distance3, difference2;
-					distance1 = ultrasonicRoutineTrack(trig1,echo1,200);
-					distance2 = ultrasonicRoutineTrack(trig2,echo2,200);  
-					distance3 = ultrasonicRoutineTrack(trig3,echo3,200);  
-					  Serial.print("ping 1");    
-					  
-					  Serial.print("\t");  
-					  Serial.print(distance1);
-				 
-					  Serial.print("\t");     
-					  Serial.print("ping 2");    
-					 
-					  Serial.print("\t");  
-					  Serial.print(distance2);
-					  difference = distance1 - distance2;
-					  
-					  Serial.print("\t");     
-					  Serial.print("ping 3");    
-					  Serial.print("\t");  
-					  Serial.print(distance3);
-					  int difference23;
-					  difference23 = distance2 - distance3;
-
-					  int difference31;
-					  difference31 = distance1 - distance3;
-
-					 float tolerance;
-						tolerance = (float(distance1) / 10.0) + .5;
-						int tol1;
-						tol1 = int(tolerance);
-						//Serial.print(tol1);
-					 float tolerance2;
-						tolerance2 = (float(distance2) / 10.0) + .5;
-							int tol2;
-								tol2 = int (tolerance2);
-					  float tolerance3;
-						tolerance3 = (float(distance3) / 20.0) + .5;
-							int tol3;
-								tol3 = int (tolerance3);
-					float closetolerance;
-						closetolerance = (float(distance1) / 7.0) + .5;
-						int closetol1;
-						closetol1 = int(closetolerance);
-						//Serial.print(tol1);
-					 float closetolerance2;
-						closetolerance2 = (float(distance2) / 7.0) + .5;
-							int closetol2;
-								closetol2 = int (closetolerance2);
-					  float closetolerance3;
-						closetolerance3 = (float(distance3) / 15.0) + .5;
-							int closetol3;
-								closetol3 = int (closetolerance3);
-				   
-					if(distance1 < distance2 && distance1 < distance2 && theta > 10) { 
-						theta = theta - dTheta ;
-						turret.write(theta);
-						delay(10);
-					} else if(distance1 > distance2 && distance1 > distance2 && theta < 170) {
-						theta = theta + dTheta;
-						turret.write(theta);
-						delay(10);
+				while(state == track && armed) {
+					// Calculate distances
+					for(i = 0; i < 3; i++) {
+						reading[i] = ultrasonicRoutineTrack((trig1 + 2*i),(echo1 + 2*i),200);
 					}
-				  
-					if(distance3 < distance1 && distance3 < distance2 && distance3 < distance1) {
-								distance3 = ultrasonicRoutine(trig3,echo3,200);
-									if (distance3 < distance1 && distance3 < distance1 && distance3 < distance2 && distance3 < distance1) {
-									  
-							// Change state to fire
-							state = fire;
-							delay(500); 
+
+					if(debug) {
+					}
+					
+					n = (theta - 8) / 8;
+					
+					if(reading[0] < baseScan[n][0] || reading[1] < baseScan[n][1] || reading[2] < baseScan[n][2]) {
+						
+						if(reading[1] <= (reading[0] + 5) && reading[1] >= (reading[0] - 5) && ((reading[0] + reading[1]) / 2) >= reading[2]) {
+							// Check to see if true
+							for(i = 0; i < 3; i++) {
+								reading[i] = ultrasonicRoutineTrack((trig1 + 2*i),(echo1 + 2*i),200);
+							}
+							
+							if(debug) {
+								Serial.print("L: ");
+								Serial.print(reading[0]);
+								Serial.print("\t");
+								Serial.print("C: ");
+								Serial.print(reading[2]);
+								Serial.print("\t");
+								Serial.print("R: ");
+								Serial.println(reading[1]);
+								Serial.print("L+5: ");
+								Serial.println(reading[0] + 5);
+							}
+							
+							if(reading[1] <= (reading[0] + 5) && reading[1] >= (reading[0] - 5) && ((reading[0] + reading[1]) / 2) >= reading[2]) {
+								if(debug) {
+									Serial.println("Going to fire.");
+								}
+								state = fire;
+								delay(500);
+							} else {
+								state = track;
+							}
+							
+						} else if(theta > 10 && theta < 170) {
+							if(reading[0] > reading[1]) {
+								theta += 8;
+							} else if(reading[0] < reading[1]) {
+								theta -= 8;
+							}
+							
+							Serial.println(theta);
+							turret.write(theta);
+							delay(10);
+						} else {
+							if(debug) {
+								Serial.println("Going to scan.");
+							}
+							state = scan;
 						}
+					
+					} else {
+						if(debug) {
+							Serial.println("Going to scan.");
+						}
+						state = scan;
 					}
-					  Serial.print("\t");
-					  Serial.print("theta");
-					  Serial.print("\t");
-					  Serial.println(theta); 
+					
 				}
+				
 			}
 			break;
 			
 		case fire:
 			// Update fire count
 			digitalWrite(firedpin, HIGH);
-			delay(1);
+			delay(5);
 			digitalWrite(firedpin, LOW);
 			
 			// Shoot stream of water
