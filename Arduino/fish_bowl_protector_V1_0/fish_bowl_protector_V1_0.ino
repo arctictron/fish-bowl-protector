@@ -400,6 +400,9 @@ void loop() {
 			delay(200);
 			digitalWrite(pump, LOW);
 			
+			delay(500);
+			turret.write(10);
+			
 			// Return back to scanning
 			time = 0;
 			
@@ -407,6 +410,8 @@ void loop() {
 				delay(5);
 				time = time + 5;
 			}
+			
+			
 			state = scan;
 			
 			digitalWrite(firedled, LOW);
