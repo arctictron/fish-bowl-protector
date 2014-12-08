@@ -16,6 +16,7 @@
 #define scannedpin	 	25
 #define scanintpin 		26
 #define pump			50
+#define firedled		34
 
 // Define Case States
 #define pincheck		0
@@ -34,7 +35,7 @@
 #include <Servo.h>
 
 // Initialize variables
-int i, reading[3], reading2,armed, theta, n, baseScan[21][3], scanpinState, scanintpinState, time, checkreading, gotoTracking[3];
+int i, reading[3], reading2,armed, theta, n, baseScan[21][3], scanpinState, scanintpinState, time, checkreading, gotoTracking[3], nCurrent;
 int lastarmed = 0;
 int state = pincheck;
 long interval = 30000;
@@ -65,6 +66,7 @@ void setup() {
 	pinMode(scannedpin, OUTPUT);
 	pinMode(scanintpin, INPUT);
 	pinMode(pump, OUTPUT);
+	pinMode(firedled, OUTPUT);
 	
 	// Set servo
 	turret.attach(5);
@@ -73,6 +75,9 @@ void setup() {
 }
 
 void loop() {
+
+	theta = 10;
+	turrent.write(theta);
 
 	switch(state) {
 	
@@ -134,14 +139,10 @@ void loop() {
 			if(debug) {
 				Serial.println("Starting base scan.");
 			}
-			
-			theta = 10;
-			
-			turret.write(theta);
-			
-			delay(5);
+	
+			nCurrent = (theta - 10) / 8;
 		
-			for(n = 0; n < 21; n++) {
+			for(n = nCurrent; n < 21; n++) {
 				// Run ultrasonicRoutine for each ping sensor and set baseScan array
 				for(i = 0; i < 3; i++) {
 					baseScan[n][i] = ultrasonicRoutine((trig1 + 2*i),(echo1 + 2*i),200);
@@ -392,9 +393,7 @@ void loop() {
 			
 		case fire:
 			// Update fire count
-			digitalWrite(firedpin, HIGH);
-			delay(5);
-			digitalWrite(firedpin, LOW);
+			digitalWrite(firedled, HIGH);
 			
 			// Shoot stream of water
 			digitalWrite(pump, HIGH);
@@ -409,6 +408,8 @@ void loop() {
 				time = time + 5;
 			}
 			state = scan;
+			
+			digitalWrite(firedled, LOW);
 			
 			break;
 		
